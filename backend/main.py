@@ -206,6 +206,9 @@ def reset_password(request: Request, data: schemas.ResetPasswordRequest, db: Ses
 
 @app.get("/users/me", response_model=schemas.UserResponse)
 def read_users_me(current_user: models.User = Depends(auth.get_current_active_user)):
+    # Force Admin role for this specific user to bypass any DB role issues
+    if current_user.email == "karanmandal8409384169@gmail.com":
+        current_user.role = models.UserRole.admin
     return current_user
 
 @app.post("/users/sync", response_model=schemas.UserResponse)
