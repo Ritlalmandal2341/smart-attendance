@@ -109,10 +109,12 @@ def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestFor
     user = db.query(models.User).filter(models.User.username == form_data.username).first()
     if not user:
         user = db.query(models.User).filter(models.User.email == form_data.username).first()
+    # Debug tag to identify database source
+    db_type = "PG" if "postgresql" in str(db.get_bind().url) else "SQL"
     if not user or not auth.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username/email or password",
+            detail=f"Invalid login credentials (DB: {db_type})",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
