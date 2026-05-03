@@ -4,7 +4,7 @@ import Webcam from 'react-webcam';
 import { useAuth } from '../../context/AuthContext';
 import { Camera, CheckCircle, AlertCircle, Clock, RefreshCw, User, CalendarDays } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const API = import.meta.env.VITE_API_URL || 'https://smart-attendance-backend-62hr.onrender.com';
 const AXIOS_TIMEOUT = 10000;
 
 const CACHE_BUSTER = new Date().getTime();
