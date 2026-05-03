@@ -1,0 +1,127 @@
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+from jose import JWTError, jwt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
+import models, schemas, database
+import os
+import bcrypt
+import base64
+import requests
+import logging
+from threading import Lock
+
+logger = logging.getLogger(__name__)
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+JWKS_URL = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
+
+_jwks_cache = None
+_jwks_lock = Lock()
+
+def get_jwks():
+    global _jwks_cache
+    if _jwks_cache:
+        return _jwks_cache
+    with _jwks_lock:
+        if _jwks_cache: return _jwks_cache
+        try:
+            response = requests.get(JWKS_URL, timeout=10)
+            response.raise_for_status()
+            _jwks_cache = response.json()
+            return _jwks_cache
+        except Exception as e:
+            logger.error(f"Failed to fetch JWKS from {JWKS_URL}: {e}")
+            return None
+
+ALGORITHM = "RS256"
+SUPPORTED_ALGORITHMS = ["RS256", "ES256", "HS256"]
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 1 day
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+def verify_password(plain_password, hashed_password):
+    """Legacy: Used for local password verification during transition."""
+    if not hashed_password: return False
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+
+def get_password_hash(password):
+    """Legacy: Used for local password hashing."""
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    """Legacy: Used for generating local JWTs."""
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=15))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm="HS256")
+
+def decode_token(token: str):
+    try:
+        header = jwt.get_unverified_header(token)
+        kid = header.get("kid")
+        
+        # If there's no kid, it might be a local/symmetric token
+        if not kid:
+            return jwt.decode(token, SECRET_KEY, algorithms=["HS256"], options={"verify_aud": False})
+        else:
+            jwks = get_jwks()
+            if not jwks or 'keys' not in jwks:
+                raise Exception("JWKS not available or invalid")
+            
+            # Find the specific key that matches the 'kid'
+            rsa_key = {}
+            for key in jwks['keys']:
+                if key['kid'] == kid:
+                    rsa_key = key
+                    break
+            
+            if not rsa_key:
+                raise Exception("Public key not found in JWKS")
+                
+            return jwt.decode(token, rsa_key, algorithms=SUPPORTED_ALGORITHMS, options={"verify_aud": False})
+    except Exception as e:
+        logger.error(f"Token decoding failed: {e}")
+        raise e
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        payload = decode_token(token)
+        supabase_user_id = payload.get("sub")
+        email = payload.get("email")
+        if supabase_user_id is None:
+            raise credentials_exception
+    except Exception:
+        raise credentials_exception
+
+    # Context: We look up by supabase_id first, then fallback to username (legacy) or email
+    user = db.query(models.User).filter(models.User.supabase_id == supabase_user_id).first()
+    
+    if not user and email:
+        # Auto-link by email if this is the first login after migration
+        user = db.query(models.User).filter(models.User.email == email).first()
+        if user:
+            user.supabase_id = supabase_user_id
+            db.commit()
+            db.refresh(user)
+
+    if user is None:
+        raise credentials_exception
+        
+    return user
+
+def get_current_active_user(current_user: models.User = Depends(get_current_user)):
+    return current_user
+
+def get_current_admin(current_user: models.User = Depends(get_current_active_user)):
+    if current_user.role != models.UserRole.admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough privileges")
+    return current_user
