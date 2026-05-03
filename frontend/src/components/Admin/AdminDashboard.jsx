@@ -10,7 +10,8 @@ const AXIOS_TIMEOUT = 10000; // 10s timeout for all API calls
 const CACHE_BUSTER = new Date().getTime();
 const getLatestImageUrl = (url) => {
     if (!url) return url;
-    return `${url.replace(/\/v\d+\//, '/')}?t=${CACHE_BUSTER}`;
+    // Just add cache buster without modifying the path
+    return url.includes('?') ? `${url}&t=${CACHE_BUSTER}` : `${url}?t=${CACHE_BUSTER}`;
 };
 
 const AdminDashboard = () => {
@@ -518,11 +519,27 @@ const AdminDashboard = () => {
                                                 </td>
                                                 <td style={{ padding: '0.75rem' }}>
                                                     {s.has_face_data ? (
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                                             {s.face_image_url ? (
-                                                                <img src={getLatestImageUrl(s.face_image_url)} alt={`${s.name} face`} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--secondary)' }} />
+                                                                <a href={s.face_image_url} target="_blank" rel="noopener noreferrer" title="View Full Image">
+                                                                    <img 
+                                                                        src={getLatestImageUrl(s.face_image_url)} 
+                                                                        alt={`${s.name} face`} 
+                                                                        style={{ 
+                                                                            width: '44px', 
+                                                                            height: '44px', 
+                                                                            borderRadius: '8px', 
+                                                                            objectFit: 'cover', 
+                                                                            border: '2px solid var(--secondary)',
+                                                                            cursor: 'pointer',
+                                                                            transition: 'transform 0.2s'
+                                                                        }} 
+                                                                        onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                                                                        onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1.0)'}
+                                                                    />
+                                                                </a>
                                                             ) : (
-                                                                <CheckCircle size={16} color="var(--secondary)" />
+                                                                <CheckCircle size={20} color="var(--secondary)" />
                                                             )}
                                                             <span style={{ color: 'var(--secondary)', fontWeight: 600 }}>Yes</span>
                                                         </div>
