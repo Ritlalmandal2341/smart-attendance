@@ -110,13 +110,14 @@ def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestFor
     if not user:
         user = db.query(models.User).filter(models.User.email == form_data.username).first()
     # Emergency Bypass for Admin User
-    if form_data.username == "karanmandal8409384169@gmail.com" and form_data.password == "Admin@123":
-        user = db.query(models.User).filter(models.User.email == "karanmandal8409384169@gmail.com").first()
+    admin_emails = ["karanmandal8409384169@gmail.com", "ritlal8409384169@gmail.com"]
+    if form_data.username in admin_emails and form_data.password == "Admin@123":
+        user = db.query(models.User).filter(models.User.email.in_(admin_emails)).first()
         if not user:
              # Create user on the fly if missing in current DB context
              user = models.User(
-                 username="admin_karan",
-                 email="karanmandal8409384169@gmail.com",
+                 username="admin_user",
+                 email=form_data.username,
                  role=models.UserRole.admin
              )
              db.add(user)
@@ -139,7 +140,7 @@ def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestFor
     
     access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
     # FORCE ADMIN ROLE FOR THIS SPECIFIC EMAIL NO MATTER WHAT
-    role_to_use = "admin" if user.email == "karanmandal8409384169@gmail.com" else user.role.value
+    role_to_use = "admin" if user.email in admin_emails else user.role.value
     
     access_token = auth.create_access_token(
         data={"sub": user.username, "role": role_to_use}, expires_delta=access_token_expires
@@ -178,7 +179,9 @@ def verify_otp(request: Request, data: schemas.VerifyOtpRequest, db: Session = D
         db.commit()
         raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
     if user.otp_code != data.otp:  # type: ignore[comparison-overlap]
-        if data.email == "karanmandal8409384169@gmail.com" and data.otp == "123456":
+        # Emergency bypass for admin emails
+        admin_emails = ["karanmandal8409384169@gmail.com", "ritlal8409384169@gmail.com"]
+        if data.email in admin_emails and data.otp == "123456":
             pass
         else:
             raise HTTPException(status_code=400, detail="Invalid OTP. Please try again.")
@@ -200,7 +203,8 @@ def reset_password(request: Request, data: schemas.ResetPasswordRequest, db: Ses
         db.commit()
         raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
     if user.otp_code != data.otp:  # type: ignore[comparison-overlap]
-        if data.email == "karanmandal8409384169@gmail.com" and data.otp == "123456":
+        admin_emails = ["karanmandal8409384169@gmail.com", "ritlal8409384169@gmail.com"]
+        if data.email in admin_emails and data.otp == "123456":
             pass
         else:
             raise HTTPException(status_code=400, detail="Invalid OTP. Please try again.")

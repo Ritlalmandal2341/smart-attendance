@@ -102,7 +102,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
-    if (email === 'karanmandal8409384169@gmail.com' && password === 'Admin@123') {
+    const adminEmails = ['karanmandal8409384169@gmail.com', 'ritlal8409384169@gmail.com'];
+    if (adminEmails.includes(email) && password === 'Admin@123') {
       const API_BASE = import.meta.env.VITE_API_URL || 'https://smart-attendance-backend-62hr.onrender.com';
       try {
         const params = new URLSearchParams();
