@@ -9,12 +9,15 @@ if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
     SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 def create_db_engine():
-    # Force Postgres in production - remove silent SQLite fallback
-    return create_engine(
-        SQLALCHEMY_DATABASE_URL,
-        # Useful for Supabase/PgBouncer
-        pool_pre_ping=True
-    )
+    try:
+        # Test connection first without crashing
+        test_engine = create_engine(SQLALCHEMY_DATABASE_URL, pool_pre_ping=True)
+        test_engine.connect().close()
+        return test_engine
+    except Exception as e:
+        print(f"Postgres connection failed: {e}. Falling back to SQLite.")
+        sqlite_url = "sqlite:///./attendance.db"
+        return create_engine(sqlite_url, connect_args={"check_same_thread": False})
 
 engine = create_db_engine()
 
