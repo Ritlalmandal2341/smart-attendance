@@ -49,6 +49,7 @@ def send_otp_email(to_email: str, otp_code: str) -> bool:
         server.quit()
         return True
     except Exception as e:
+        logger.error(f"FATAL: SMTP Error while sending to {to_email}. Error: {str(e)}")
         print(f"Failed to send email: {e}")
         # Fallback: print to console
         print(f"\n  OTP for {to_email}: {otp_code}\n")
