@@ -14,25 +14,17 @@ if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
     SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 def create_db_engine():
-    try:
-        # We use pool_pre_ping to liveness check the connection
-        # Force SSL mode for Supabase
-        test_engine = create_engine(
-            SQLALCHEMY_DATABASE_URL, 
-            pool_pre_ping=True,
-            connect_args={"sslmode": "require"} if "postgresql" in SQLALCHEMY_DATABASE_URL else {}
-        )
-        # Try to connect to verify credentials
-        with test_engine.connect() as conn:
-            pass
+    # Force Postgres/Supabase connection - NO SQLITE FALLBACK
+    print(f"Connecting to: {SQLALCHEMY_DATABASE_URL.split('@')[-1]}") # Log only host for security
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL, 
+        pool_pre_ping=True,
+        connect_args={"sslmode": "require"} if "postgresql" in SQLALCHEMY_DATABASE_URL else {}
+    )
+    # Test connection immediately
+    with engine.connect() as conn:
         print("Successfully connected to Supabase PostgreSQL!")
-        return test_engine
-    except Exception as e:
-        print(f"!!! CRITICAL: Supabase connection failed: {str(e)}")
-        print("Falling back to temporary SQLite (Warning: Data will be lost on redeploy)")
-        return create_engine(
-            SQLALCHEMY_DATABASE_URL_SQLITE, connect_args={"check_same_thread": False}
-        )
+    return engine
 
 engine = create_db_engine()
 
