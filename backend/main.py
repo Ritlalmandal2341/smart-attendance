@@ -45,7 +45,7 @@ origins = [frontend_url] if frontend_url != "*" else ["*"]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # Dynamically allow specified frontend or all origins
+    allow_origins=["*"],  # Allow any frontend during this transition
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
