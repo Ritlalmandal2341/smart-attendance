@@ -16,7 +16,12 @@ if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
 def create_db_engine():
     try:
         # We use pool_pre_ping to liveness check the connection
-        test_engine = create_engine(SQLALCHEMY_DATABASE_URL, pool_pre_ping=True)
+        # Force SSL mode for Supabase
+        test_engine = create_engine(
+            SQLALCHEMY_DATABASE_URL, 
+            pool_pre_ping=True,
+            connect_args={"sslmode": "require"} if "postgresql" in SQLALCHEMY_DATABASE_URL else {}
+        )
         # Try to connect to verify credentials
         with test_engine.connect() as conn:
             pass
