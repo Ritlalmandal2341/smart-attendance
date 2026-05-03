@@ -630,19 +630,20 @@ def get_dashboard_stats(db: Session = Depends(database.get_db), current_admin: m
     # 7-day attendance rate
     seven_days_ago = date.today() - timedelta(days=7)
     week_start = datetime.combine(seven_days_ago, datetime.min.time())
-    week_records = db.query(models.AttendanceRecord).filter(
+    
+    week_records_count = db.query(models.AttendanceRecord).filter(
         models.AttendanceRecord.timestamp >= week_start
-    ).all()
+    ).count()
 
-    # Count unique days that have any attendance
-    unique_days = set()
-    for r in week_records:
-        unique_days.add(r.timestamp.date())  # type: ignore[union-attr]
-    total_days_tracked = len(unique_days) if unique_days else 1
+    # Count unique days that have any attendance in the last 7 days
+    from sqlalchemy import func
+    total_days_tracked = db.query(func.count(func.distinct(func.date(models.AttendanceRecord.timestamp)))).filter(
+        models.AttendanceRecord.timestamp >= week_start
+    ).scalar() or 1
 
     # Rate = (total attendance marks in 7d) / (total_students * days_tracked) * 100
     if total_students > 0 and total_days_tracked > 0:
-        rate = (len(week_records) / (total_students * total_days_tracked)) * 100
+        rate = (week_records_count / (total_students * total_days_tracked)) * 100
         rate = min(rate, 100.0)
     else:
         rate = 0.0
