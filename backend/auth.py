@@ -119,6 +119,10 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
             user.supabase_id = username_or_id
             db.commit()
             db.refresh(user)
+    except Exception as e:
+        logger.error(f"Error in get_current_user: {e}")
+        raise credentials_exception
+        
     return user
 
 def get_current_active_user(current_user: models.User = Depends(get_current_user)):
