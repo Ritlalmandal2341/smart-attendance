@@ -118,6 +118,15 @@ export const AuthProvider = ({ children }) => {
         if (response.ok) {
           const data = await response.json();
           setToken(data.access_token);
+          
+          // Manually fetch user profile to trigger state update and redirect
+          const profileRes = await fetch(`${API_BASE}/users/me`, {
+            headers: { 'Authorization': `Bearer ${data.access_token}` }
+          });
+          if (profileRes.ok) {
+            const userData = await profileRes.json();
+            setUser(userData);
+          }
           return data;
         }
       } catch (err) {
