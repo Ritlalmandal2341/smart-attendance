@@ -95,27 +95,30 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     
     try:
         payload = decode_token(token)
-        supabase_user_id = payload.get("sub")
+        username_or_id = payload.get("sub")
         email = payload.get("email")
-        if supabase_user_id is None:
+        
+        if username_or_id is None:
             raise credentials_exception
-    except Exception:
-        raise credentials_exception
-
-    # Context: We look up by supabase_id first, then fallback to username (legacy) or email
-    user = db.query(models.User).filter(models.User.supabase_id == supabase_user_id).first()
-    
-    if not user and email:
-        # Auto-link by email if this is the first login after migration
-        user = db.query(models.User).filter(models.User.email == email).first()
-        if user:
-            user.supabase_id = supabase_user_id
+            
+        # Try to find by supabase_id first
+        user = db.query(models.User).filter(models.User.supabase_id == username_or_id).first()
+        
+        # Fallback: Find by username or email (for local/bypass users)
+        if not user:
+            user = db.query(models.User).filter(
+                (models.User.username == username_or_id) | 
+                (models.User.email == (email or username_or_id))
+            ).first()
+            
+        if user is None:
+            raise credentials_exception
+            
+        # If we logged in via Supabase but the user was found via local lookup, link them
+        if not user.supabase_id and username_or_id:
+            user.supabase_id = username_or_id
             db.commit()
             db.refresh(user)
-
-    if user is None:
-        raise credentials_exception
-        
     return user
 
 def get_current_active_user(current_user: models.User = Depends(get_current_user)):
