@@ -102,24 +102,22 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
-    // Try Emergency Bypass via Backend first
     if (email === 'karanmandal8409384169@gmail.com' && password === 'Admin@123') {
       const API_BASE = import.meta.env.VITE_API_URL || 'https://smart-attendance-backend-62hr.onrender.com';
       try {
-        const formData = new FormData();
-        formData.append('username', email);
-        formData.append('password', password);
+        const params = new URLSearchParams();
+        params.append('username', email);
+        params.append('password', password);
         
         const response = await fetch(`${API_BASE}/login`, {
           method: 'POST',
-          body: formData
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params
         });
         
         if (response.ok) {
           const data = await response.json();
-          // We got a token from backend bypass!
           setToken(data.access_token);
-          // fetchUserProfile will handle setting the user state
           return data;
         }
       } catch (err) {
