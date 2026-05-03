@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 # Load environment variables early
 load_dotenv()
 
-from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi import FastAPI, Depends, HTTPException, status, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import StreamingResponse
@@ -148,7 +148,7 @@ def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestFor
 
 @app.post("/send-otp")
 @limiter.limit("3/hour")
-def send_otp(request: Request, data: schemas.ForgotPasswordRequest, db: Session = Depends(database.get_db)):
+def send_otp(request: Request, data: schemas.ForgotPasswordRequest, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db)):
     """Send 6-digit OTP to user's email for password reset."""
     user = db.query(models.User).filter(models.User.email == data.email).first()
     if not user:
@@ -159,7 +159,8 @@ def send_otp(request: Request, data: schemas.ForgotPasswordRequest, db: Session 
     user.otp_expiry = datetime.now() + timedelta(minutes=5)  # type: ignore[assignment]
     db.commit()
     
-    email_utils.send_otp_email(data.email, otp)
+    # Send email in the background so the user doesn't wait
+    background_tasks.add_task(email_utils.send_otp_email, data.email, otp)
     return {"message": "OTP sent successfully. It expires in 5 minutes."}
 
 @app.post("/verify-otp")
