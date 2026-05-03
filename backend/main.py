@@ -641,10 +641,15 @@ def get_dashboard_stats(db: Session = Depends(database.get_db), current_admin: m
     ).count()
 
     # Count unique days that have any attendance in the last 7 days
-    from sqlalchemy import func
-    total_days_tracked = db.query(func.count(func.distinct(func.date(models.AttendanceRecord.timestamp)))).filter(
+    # More compatible way than func.date which fails on SQLite
+    unique_days = set()
+    week_records = db.query(models.AttendanceRecord.timestamp).filter(
         models.AttendanceRecord.timestamp >= week_start
-    ).scalar() or 1
+    ).all()
+    for r in week_records:
+        if r[0]:
+            unique_days.add(r[0].date())
+    total_days_tracked = len(unique_days) if unique_days else 1
 
     # Rate = (total attendance marks in 7d) / (total_students * days_tracked) * 100
     if total_students > 0 and total_days_tracked > 0:
