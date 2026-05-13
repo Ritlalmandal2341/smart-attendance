@@ -66,6 +66,11 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": f"Internal Server Error: {str(exc)}", "status": 500}
     )
 
+# ── Ping Endpoint (Fastest for Keep-Alive) ──────────────────────
+@app.get("/ping")
+def ping():
+    return {"status": "pong"}
+
 # ── Health Endpoint ──────────────────────────────────────────────
 @app.get("/health")
 def health_check(db: Session = Depends(database.get_db)):

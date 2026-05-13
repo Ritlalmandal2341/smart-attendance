@@ -136,6 +136,12 @@ const RootRedirect = () => {
 
 // ── App Content ─────────────────────────────────────────────────
 const AppContent = () => {
+  // Pre-warm the backend immediately on load (especially useful for Render cold starts)
+  React.useEffect(() => {
+    const API_BASE = import.meta.env.VITE_API_URL || 'https://smart-attendance-backend-62hr.onrender.com';
+    fetch(`${API_BASE}/ping`).catch(() => {});
+  }, []);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%' }}>
       <Header />
